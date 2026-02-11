@@ -1,0 +1,61 @@
+# Worker workflow: handle repository_dispatch events from the ingestion
+# workflow and execute the actual agent work (plan, apply, merge, etc.).
+
+name: "cind: worker"
+
+on:
+  repository_dispatch:
+    types:
+      - try-fix
+      - try-merge
+
+# Only one worker per issue/PR at a time (keyed on the payload).
+concurrency:
+  group: >-
+    cind-worker-${{
+      github.event.client_payload.issue_number
+      || github.event.client_payload.pr_num
+      || github.run_id
+    }}
+  cancel-in-progress: false
+
+jobs:
+  worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+        with:
+          # Full history needed for rebasing / branch creation.
+          fetch-depth: 0
+          # Use a PAT or the built-in token for push access.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cind (with agent deps)
+        run: |
+          pip install --quiet "cind[agent] @ git+https://github.com/dedalus-labs/dedalus.git@dev#subdirectory=tools/cind"
+        env:
+          # dedalus-labs may need PyPI credentials if it's private.
+          UV_EXTRA_INDEX_URL: ${{ secrets.PYPI_INDEX_URL || '' }}
+
+      - name: Install test dependencies
+        run: pip install --quiet pytest
+
+      - name: Run worker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEDALUS_API_KEY: ${{ secrets.DEDALUS_API_KEY }}
+          CIND_DEDALUS_MODEL: ${{ vars.CIND_DEDALUS_MODEL || 'openai/gpt-5' }}
+          PYTHONPATH: src
+        run: python -m cind.worker

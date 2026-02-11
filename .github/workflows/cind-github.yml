@@ -1,0 +1,48 @@
+# Ingestion workflow: parse @cind commands from issue/PR comments
+# and dispatch long-running work via repository_dispatch.
+#
+# This is the "no server required" path — GitHub Actions IS the control plane.
+
+name: "cind: comment ingestion"
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted, edited]
+
+# Only one ingestion job per issue/PR at a time.
+concurrency:
+  group: cind-ingest-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ingest:
+    # Only run if the comment body contains @cind.
+    if: >-
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@cind'))
+      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@cind'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cind
+        run: |
+          pip install --quiet "cind @ git+https://github.com/dedalus-labs/dedalus.git@dev#subdirectory=tools/cind"
+
+      - name: Run ingestion handler
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python -m cind.gha.ingest_github_event
