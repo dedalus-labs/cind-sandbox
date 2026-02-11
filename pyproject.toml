@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mathutils"
+version = "0.1.0"
+description = "Tiny math utility library — fixture for cind end-to-end testing."
+requires-python = ">=3.11"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mathutils"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = ["-v", "--tb=short"]
