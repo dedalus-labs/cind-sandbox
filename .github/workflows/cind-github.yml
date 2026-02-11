@@ -40,7 +40,7 @@ jobs:
 
       - name: Install cind
         run: |
-          pip install --quiet "cind @ git+https://github.com/dedalus-labs/dedalus.git@dev#subdirectory=tools/cind"
+          pip install --quiet "cind @ git+https://github.com/dedalus-labs/dedalus.git@${{ vars.CIND_MONOREPO_REF || 'dev' }}#subdirectory=tools/cind"
 
       - name: Run ingestion handler
         env:

@@ -44,7 +44,7 @@ jobs:
 
       - name: Install cind (with agent deps)
         run: |
-          pip install --quiet "cind[agent] @ git+https://github.com/dedalus-labs/dedalus.git@dev#subdirectory=tools/cind"
+          pip install --quiet "cind[agent] @ git+https://github.com/dedalus-labs/dedalus.git@${{ vars.CIND_MONOREPO_REF || 'dev' }}#subdirectory=tools/cind"
         env:
           # dedalus-labs may need PyPI credentials if it's private.
           UV_EXTRA_INDEX_URL: ${{ secrets.PYPI_INDEX_URL || '' }}
